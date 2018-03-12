@@ -1,4 +1,9 @@
 package testproxy.api
 
-case class ProxyRequest(id: Long, method : String, uri : String)
+import akka.util.ByteString
 
+case class ProxyRequest(id: Long,
+                        method: String,
+                        path: String,
+                        headers: Seq[Header],
+                        body: ByteString)

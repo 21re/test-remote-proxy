@@ -10,11 +10,12 @@ import akka.stream.{ActorMaterializer, Materializer}
 import scala.concurrent.ExecutionContext
 
 class RemoteProxy(endpoint: String) extends ClientFlow {
-  implicit val system : ActorSystem = ActorSystem("test-proxy-client")
-  implicit def ec : ExecutionContext = system.dispatcher
-  implicit val materializer : Materializer = ActorMaterializer()
+  implicit val system: ActorSystem        = ActorSystem("test-proxy-client")
+  implicit def ec: ExecutionContext       = system.dispatcher
+  implicit val materializer: Materializer = ActorMaterializer()
 
-  val (upgradeResponse, closed) =   Http().singleWebSocketRequest(WebSocketRequest(endpoint), clientFlow)
+  val (upgradeResponse, killSwitches) =
+    Http().singleWebSocketRequest(WebSocketRequest(endpoint), clientFlow)
 
   val connected = upgradeResponse.map { upgrade =>
     if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
@@ -25,5 +26,4 @@ class RemoteProxy(endpoint: String) extends ClientFlow {
   }
 
   connected.onComplete(println)
-  closed.foreach(_ => println("closed"))
 }

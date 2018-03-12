@@ -1,20 +1,33 @@
 package testproxy.client
 
-import akka.Done
-import akka.http.scaladsl.model.ws.{Message, TextMessage}
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source, SourceQueueWithComplete}
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.{KillSwitches, Materializer, UniqueKillSwitch}
+import akka.util.ByteString
+import spray.json._
+import testproxy.api.{JsonSupport, ProxyRequest, ProxyResponse}
 
-import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
-trait ClientFlow {
-  val printSink: Sink[Message, Future[Done]] =
-    Sink.foreach {
-      case message: TextMessage.Strict =>
-        println(message.text)
-    }
+trait ClientFlow extends JsonSupport {
 
-  val helloSource: Source[Message, SourceQueueWithComplete[Message]] = Source.queue[Message](100, OverflowStrategy.backpressure)
-
-  def clientFlow : Flow[Message, Message, Future[Done]] =   Flow.fromSinkAndSourceMat(printSink, helloSource)(Keep.left)
+  def clientFlow(implicit materializer: Materializer,
+                 ec: ExecutionContext): Flow[Message, Message, UniqueKillSwitch] = {
+    Flow[Message].flatMapMerge(
+      1, {
+        case message: TextMessage =>
+          Source.fromFuture(
+            message.textStream.runWith(Sink.reduce[String](_ + _)).map { text =>
+              val request = text.parseJson.convertTo[ProxyRequest]
+              println(s"Request: $request")
+              val response = ProxyResponse(request.id, 200, Seq.empty, ByteString("BlaBla"))
+              TextMessage(response.toJson.compactPrint)
+            }
+          )
+        case message: BinaryMessage =>
+          message.dataStream.runWith(Sink.ignore)
+          Source.empty
+      }
+    ).viaMat(KillSwitches.single)(Keep.right)
+  }
 }

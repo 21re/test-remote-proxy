@@ -11,15 +11,17 @@ import scala.concurrent.duration.Duration
 
 object Main extends App {
 
-  implicit val system: ActorSystem = ActorSystem("test-proxy-server")
-  implicit def ec : ExecutionContext = system.dispatcher
-  implicit val materializer : Materializer = ActorMaterializer()
+  implicit val system: ActorSystem        = ActorSystem("test-proxy-server")
+  implicit def ec: ExecutionContext       = system.dispatcher
+  implicit val materializer: Materializer = ActorMaterializer()
 
-  lazy val routes : Route = pathPrefix("v1") {
-    path("listen") {
-      val proxyServer = new ProxyServer(8000)
+  lazy val routes: Route = pathPrefix("v1") {
+    pathPrefix("listen") {
+      path(IntNumber) { port =>
+        val proxyServer = new ProxyServer(port)
 
-      handleWebSocketMessages(proxyServer.listenFlow)
+        handleWebSocketMessages(proxyServer.listenFlow)
+      }
     }
   }
 

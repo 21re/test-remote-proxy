@@ -42,3 +42,10 @@ libraryDependencies ++= Seq(
 
 mainClass := Some("testproxy.server.Main")
 
+scalafmtVersion := "1.0.0"
+
+(compile in Compile) := {
+  (compile in Compile) dependsOn (
+    scalafmt in Compile
+  )
+}.value
