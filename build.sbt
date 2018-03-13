@@ -1,6 +1,10 @@
 name := "remote-test-proxy"
 
-version := "0.0.1"
+organization := "de.21re"
+
+version := {
+  "0.1-" + sys.props.get("BUILD_NUMBER").orElse(sys.env.get("BUILD_NUMBER")).getOrElse("SNAPSHOT")
+}
 
 scalaVersion := "2.12.3"
 scalaVersion in ThisBuild := "2.12.3"
@@ -51,3 +55,13 @@ scalafmtVersion := "1.0.0"
     scalafmt in Compile
   )
 }.value
+
+dockerRepository in Docker := Some("21re")
+
+bintrayOrganization := Some("21re")
+
+bintrayRepository := "public"
+
+bintrayCredentialsFile := {
+  sys.props.get("BINTRAY_CREDENTIALS").orElse(sys.env.get("BINTRAY_CREDENTIALS")).map(new File(_)).getOrElse(baseDirectory.value / ".bintray" / "credentials")
+}

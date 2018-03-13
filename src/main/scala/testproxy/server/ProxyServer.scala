@@ -16,7 +16,7 @@ class ProxyServer(
   val proxyActor: ActorRef = system.actorOf(ProxyActor.props(port))
   val responseSink: Sink[Message, Any] = Sink
     .foreach[Message] {
-      case message: TextMessage.Strict =>
+      case message: TextMessage =>
         message.textStream.runWith(Sink.reduce[String](_ + _)).foreach { text =>
           proxyActor ! text.parseJson.convertTo[ProxyResponse]
         }
