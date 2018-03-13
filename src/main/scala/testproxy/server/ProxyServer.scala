@@ -14,18 +14,20 @@ class ProxyServer(
     port: Int)(implicit system: ActorSystem, materializer: Materializer, ec: ExecutionContext)
     extends JsonSupport {
   val proxyActor: ActorRef = system.actorOf(ProxyActor.props(port))
-  val responseSink: Sink[Message, Any] = Sink.foreach[Message] {
-    case message: TextMessage.Strict =>
-      message.textStream.runWith(Sink.reduce[String](_ + _)).foreach { text =>
-        proxyActor ! text.parseJson.convertTo[ProxyResponse]
-      }
-    case message: BinaryMessage =>
-      message.dataStream.runWith(Sink.ignore)
-  }.mapMaterializedValue { closed =>
-    closed.foreach { _ =>
-      proxyActor ! ProxyActor.Disconnect
+  val responseSink: Sink[Message, Any] = Sink
+    .foreach[Message] {
+      case message: TextMessage.Strict =>
+        message.textStream.runWith(Sink.reduce[String](_ + _)).foreach { text =>
+          proxyActor ! text.parseJson.convertTo[ProxyResponse]
+        }
+      case message: BinaryMessage =>
+        message.dataStream.runWith(Sink.ignore)
     }
-  }
+    .mapMaterializedValue { closed =>
+      closed.foreach { _ =>
+        proxyActor ! ProxyActor.Disconnect
+      }
+    }
 
   val requestSource: Source[Message, Any] = Source
     .queue[ProxyRequest](100, OverflowStrategy.backpressure)

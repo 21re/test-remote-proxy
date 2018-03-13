@@ -13,21 +13,23 @@ trait ClientFlow extends JsonSupport {
 
   def clientFlow(implicit materializer: Materializer,
                  ec: ExecutionContext): Flow[Message, Message, UniqueKillSwitch] = {
-    Flow[Message].flatMapMerge(
-      1, {
-        case message: TextMessage =>
-          Source.fromFuture(
-            message.textStream.runWith(Sink.reduce[String](_ + _)).map { text =>
-              val request = text.parseJson.convertTo[ProxyRequest]
-              println(s"Request: $request")
-              val response = ProxyResponse(request.id, 200, Seq.empty, ByteString("BlaBla"))
-              TextMessage(response.toJson.compactPrint)
-            }
-          )
-        case message: BinaryMessage =>
-          message.dataStream.runWith(Sink.ignore)
-          Source.empty
-      }
-    ).viaMat(KillSwitches.single)(Keep.right)
+    Flow[Message]
+      .flatMapMerge(
+        1, {
+          case message: TextMessage =>
+            Source.fromFuture(
+              message.textStream.runWith(Sink.reduce[String](_ + _)).map { text =>
+                val request = text.parseJson.convertTo[ProxyRequest]
+                println(s"Request: $request")
+                val response = ProxyResponse(request.id, 200, Seq.empty, ByteString("BlaBla"))
+                TextMessage(response.toJson.compactPrint)
+              }
+            )
+          case message: BinaryMessage =>
+            message.dataStream.runWith(Sink.ignore)
+            Source.empty
+        }
+      )
+      .viaMat(KillSwitches.single)(Keep.right)
   }
 }

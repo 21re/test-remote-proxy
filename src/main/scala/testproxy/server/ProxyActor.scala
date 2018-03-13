@@ -87,7 +87,7 @@ class ProxyActor(port: Int)(implicit materializer: Materializer)
                                requestCount,
                                requestQueue,
                                pendingRequests - response.id)
-    case Event(Disconnect,  BoundServer(serverBinding, _, _, _)) =>
+    case Event(Disconnect, BoundServer(serverBinding, _, _, _)) =>
       log.info(s"Unbinding server ${serverBinding.localAddress}")
       serverBinding.unbind().foreach { _ =>
         log.info(s"Server ${serverBinding.localAddress} unbound")

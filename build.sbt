@@ -1,9 +1,11 @@
-name := "remove-test-proxy"
+name := "remote-test-proxy"
 
 version := "0.0.1"
 
 scalaVersion := "2.12.3"
 scalaVersion in ThisBuild := "2.12.3"
+
+enablePlugins(JavaAppPackaging, DockerPlugin)
 
 scalacOptions in GlobalScope ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -40,7 +42,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % "2.5.8"
 )
 
-mainClass := Some("testproxy.server.Main")
+mainClass in Compile := Some("testproxy.server.Main")
 
 scalafmtVersion := "1.0.0"
 
