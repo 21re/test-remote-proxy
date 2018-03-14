@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, ActorSystem, FSM, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, SourceQueueWithComplete}
 import akka.util.{ByteString, Timeout}
@@ -62,6 +63,7 @@ class ProxyActor(implicit materializer: Materializer)
             path = request.uri.path
               .toString() + request.uri.rawQueryString.map("?" + _).getOrElse(""),
             headers = request.headers.map(header => Header(header.name(), header.value())),
+            contentType = request.entity.contentType.value,
             body = body
           ))
       }
@@ -75,19 +77,21 @@ class ProxyActor(implicit materializer: Materializer)
         ref ! HttpResponse(
           status = response.status,
           headers = response.headers
-            .flatMap(header =>
-              HttpHeader.parse(header.name, header.value) match {
-                case HttpHeader.ParsingResult.Ok(header, _) => Seq(header)
-                case _                                      => Seq.empty
-            })
+            .map(header => RawHeader(header.name, header.value))
             .to[collection.immutable.Seq],
-          entity = HttpEntity(response.body)
+          entity = HttpEntity(ContentType
+                                .parse(response.contentType)
+                                .getOrElse(ContentTypes.`application/octet-stream`),
+                              response.body)
         )
       }
       stay() using BoundServer(serverBinding,
                                requestCount,
                                requestQueue,
                                pendingRequests - response.id)
+    case Event(ProxyPing, BoundServer(_, _, requestQueue, _)) =>
+      requestQueue.offer(ProxyPong)
+      stay()
     case Event(Disconnect, BoundServer(serverBinding, _, _, _)) =>
       log.info(s"Unbinding server ${serverBinding.localAddress}")
       serverBinding.unbind().foreach { _ =>

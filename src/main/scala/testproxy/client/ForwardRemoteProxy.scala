@@ -1,6 +1,7 @@
 package testproxy.client
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import testproxy.api.{Header, ProxyRequest, ProxyResponse}
@@ -25,13 +26,12 @@ class ForwardRemoteProxy(proxyEndpoint: String, target: String)
           .getOrElse(HttpMethod.custom(proxyRequest.method)),
         uri = Uri(target + proxyRequest.path),
         headers = proxyRequest.headers
-          .flatMap(header =>
-            HttpHeader.parse(header.name, header.value) match {
-              case HttpHeader.ParsingResult.Ok(httpHeader, _) => Seq(httpHeader)
-              case _                                          => Seq.empty
-          })
+          .map(header => RawHeader(header.name, header.value))
           .to[collection.immutable.Seq],
-        entity = HttpEntity(proxyRequest.body)
+        entity = HttpEntity(ContentType
+                              .parse(proxyRequest.contentType)
+                              .getOrElse(ContentTypes.`application/octet-stream`),
+                            proxyRequest.body)
       )
       val effectiveRequest = mangleRequest.applyOrElse(request, identity[HttpRequest])
       Http()
@@ -44,12 +44,14 @@ class ForwardRemoteProxy(proxyEndpoint: String, target: String)
               status = effectiveResponse.status.intValue(),
               headers =
                 effectiveResponse.headers.map(header => Header(header.name(), header.value())),
+              contentType = effectiveResponse.entity.contentType.value,
               body = body
             )
           }
         }
         .recover {
-          case e => ProxyResponse(proxyRequest.id, 503, Seq.empty, ByteString(e.getMessage))
+          case e =>
+            ProxyResponse(proxyRequest.id, 503, Seq.empty, "text/plain", ByteString(e.getMessage))
         }
   }
 }

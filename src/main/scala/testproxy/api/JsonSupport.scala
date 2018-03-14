@@ -21,8 +21,8 @@ trait JsonSupport extends SprayJsonSupport {
   }
 
   implicit val headerFormat: RootJsonFormat[Header]      = jsonFormat2(Header)
-  val proxyRequestFormat: RootJsonFormat[ProxyRequest]   = jsonFormat5(ProxyRequest)
-  val proxyResponseFormat: RootJsonFormat[ProxyResponse] = jsonFormat4(ProxyResponse)
+  val proxyRequestFormat: RootJsonFormat[ProxyRequest]   = jsonFormat6(ProxyRequest)
+  val proxyResponseFormat: RootJsonFormat[ProxyResponse] = jsonFormat5(ProxyResponse)
   val proxyBindFormat: RootJsonFormat[ProxyBind]         = jsonFormat1(ProxyBind)
 
   implicit object ProxyMessageFormat extends RootJsonFormat[ProxyMessage] {
@@ -33,6 +33,8 @@ trait JsonSupport extends SprayJsonSupport {
           case ("response", inner)         => inner.convertTo[ProxyResponse](proxyResponseFormat)
           case ("bind", inner)             => inner.convertTo[ProxyBind](proxyBindFormat)
           case ("unbind", _)               => ProxyUnbind
+          case ("ping", _)                 => ProxyPing
+          case ("pong", _)                 => ProxyPong
           case (t, _)                      => deserializationError("Unknown message type " + t)
         }
       case x => deserializationError("Expected nonEmpty JsObject, but got " + x)
@@ -42,6 +44,8 @@ trait JsonSupport extends SprayJsonSupport {
       case request: ProxyRequest   => JsObject("request"  -> request.toJson(proxyRequestFormat))
       case response: ProxyResponse => JsObject("response" -> response.toJson(proxyResponseFormat))
       case bind: ProxyBind         => JsObject("bind"     -> bind.toJson(proxyBindFormat))
+      case ProxyPing               => JsObject("ping"     -> JsObject())
+      case ProxyPong               => JsObject("pong"     -> JsObject())
       case ProxyUnbind             => JsObject("unbind"   -> JsObject())
     }
   }
