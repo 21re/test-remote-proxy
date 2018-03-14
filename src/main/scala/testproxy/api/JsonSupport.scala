@@ -4,32 +4,45 @@ import java.util.Base64
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.ByteString
-import spray.json.{
-  JsBoolean,
-  JsFalse,
-  JsString,
-  JsTrue,
-  JsValue,
-  JsonFormat,
-  RootJsonFormat,
-  deserializationError
-}
+import spray.json._
 
 trait JsonSupport extends SprayJsonSupport {
 
   import spray.json.DefaultJsonProtocol._
 
   implicit object ByteStringFormat extends JsonFormat[ByteString] {
-    def write(x: ByteString) =
+    override def write(x: ByteString): JsValue =
       JsString(Base64.getEncoder.withoutPadding().encodeToString(x.toArray))
 
-    def read(value: JsValue) = value match {
+    override def read(value: JsValue): ByteString = value match {
       case JsString(b) => ByteString(Base64.getDecoder.decode(b))
       case x           => deserializationError("Expected JsString, but got " + x)
     }
   }
 
-  implicit val headerFormat: RootJsonFormat[Header]               = jsonFormat2(Header)
-  implicit val proxyRequestFormat: RootJsonFormat[ProxyRequest]   = jsonFormat5(ProxyRequest)
-  implicit val proxyResponseFormat: RootJsonFormat[ProxyResponse] = jsonFormat4(ProxyResponse)
+  implicit val headerFormat: RootJsonFormat[Header]      = jsonFormat2(Header)
+  val proxyRequestFormat: RootJsonFormat[ProxyRequest]   = jsonFormat5(ProxyRequest)
+  val proxyResponseFormat: RootJsonFormat[ProxyResponse] = jsonFormat4(ProxyResponse)
+  val proxyBindFormat: RootJsonFormat[ProxyBind]         = jsonFormat1(ProxyBind)
+
+  implicit object ProxyMessageFormat extends RootJsonFormat[ProxyMessage] {
+    override def read(json: JsValue): ProxyMessage = json match {
+      case JsObject(fields) if fields.nonEmpty =>
+        fields.head match {
+          case ("request", inner: JsValue) => inner.convertTo[ProxyRequest](proxyRequestFormat)
+          case ("response", inner)         => inner.convertTo[ProxyResponse](proxyResponseFormat)
+          case ("bind", inner)             => inner.convertTo[ProxyBind](proxyBindFormat)
+          case ("unbind", _)               => ProxyUnbind
+          case (t, _)                      => deserializationError("Unknown message type " + t)
+        }
+      case x => deserializationError("Expected nonEmpty JsObject, but got " + x)
+    }
+
+    override def write(obj: ProxyMessage): JsValue = obj match {
+      case request: ProxyRequest   => JsObject("request"  -> request.toJson(proxyRequestFormat))
+      case response: ProxyResponse => JsObject("response" -> response.toJson(proxyResponseFormat))
+      case bind: ProxyBind         => JsObject("bind"     -> bind.toJson(proxyBindFormat))
+      case ProxyUnbind             => JsObject("unbind"   -> JsObject())
+    }
+  }
 }

@@ -7,7 +7,8 @@ import testproxy.api.{Header, ProxyRequest, ProxyResponse}
 
 import scala.concurrent.Future
 
-class ForwardProxyProxy(proxyEndpoint: String, target: String) extends RemoteProxy(proxyEndpoint) {
+class ForwardRemoteProxy(proxyEndpoint: String, target: String)
+    extends RemoteProxy(proxyEndpoint) {
   def mangleRequest: PartialFunction[HttpRequest, HttpRequest] = {
     case request => request
   }

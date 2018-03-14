@@ -8,10 +8,11 @@ import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, WebSock
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, KillSwitches, Materializer, UniqueKillSwitch}
 import akka.util.ByteString
-import testproxy.api.{JsonSupport, ProxyRequest, ProxyResponse}
+import testproxy.api._
 import spray.json._
+
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 
 abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
   implicit val system: ActorSystem        = ActorSystem("test-proxy-client")
@@ -31,6 +32,10 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
     }
   }
 
+  private val bindPromise = Promise[Int]()
+
+  def bind: Future[Int] = bindPromise.future
+
   def stop(): Unit = {
     killSwitches.shutdown()
 
@@ -43,11 +48,13 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
       .flatMapMerge(
         1, {
           case message: TextMessage =>
-            Source.fromFuture(
+            Source.fromFutureSource(
               message.textStream.runWith(Sink.reduce[String](_ + _)).flatMap { text =>
-                val request = text.parseJson.convertTo[ProxyRequest]
-                handleRequest(request).map { response =>
-                  TextMessage(response.toJson.compactPrint)
+                val message = text.parseJson.convertTo[ProxyMessage]
+                handleMessage(message).map {
+                  case Some(message) =>
+                    Source(TextMessage(message.toJson.compactPrint) :: Nil)
+                  case None => Source.empty
                 }
               }
             )
@@ -59,10 +66,18 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
       .viaMat(KillSwitches.single)(Keep.right)
   }
 
-  def handleRequest(proxyRequest: ProxyRequest): Future[ProxyResponse] =
-    handler.applyOrElse(
-      proxyRequest,
-      (_: ProxyRequest) =>
-        Future.successful(
-          ProxyResponse(proxyRequest.id, 500, Seq.empty, ByteString("Not implemented"))))
+  def handleMessage(message: ProxyMessage): Future[Option[ProxyMessage]] = message match {
+    case request: ProxyRequest =>
+      handler
+        .applyOrElse(request,
+                     (_: ProxyRequest) =>
+                       Future.successful(
+                         ProxyResponse(request.id, 500, Seq.empty, ByteString("Not implemented"))))
+        .map(Some(_))
+    case bind: ProxyBind =>
+      bindPromise.success(bind.port)
+      Future.successful(None)
+    case _ =>
+      Future.successful(None)
+  }
 }

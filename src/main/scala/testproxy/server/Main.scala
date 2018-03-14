@@ -17,11 +17,9 @@ object Main extends App {
 
   lazy val routes: Route = pathPrefix("v1") {
     pathPrefix("listen") {
-      path(IntNumber) { port =>
-        val proxyServer = new ProxyServer(port)
+      val proxyServer = new ProxyServer
 
-        handleWebSocketMessages(proxyServer.listenFlow)
-      }
+      handleWebSocketMessages(proxyServer.listenFlow)
     }
   }
 

@@ -7,13 +7,13 @@ import akka.http.scaladsl.model._
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, SourceQueueWithComplete}
 import akka.util.{ByteString, Timeout}
-import testproxy.api.{Header, ProxyRequest, ProxyResponse}
+import testproxy.api._
 import akka.pattern.ask
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
-class ProxyActor(port: Int)(implicit materializer: Materializer)
+class ProxyActor(implicit materializer: Materializer)
     extends FSM[ProxyActor.State, ProxyActor.Data]
     with ActorLogging {
   import ProxyActor._
@@ -25,12 +25,12 @@ class ProxyActor(port: Int)(implicit materializer: Materializer)
 
   when(Initial) {
     case Event(ConnectSource(requestQueue), Uninitialized) =>
-      log.info(s"Launching new server on port $port")
+      log.info(s"Launching new server")
 
       Http()
         .bindAndHandleAsync({ request =>
           (self ? request).map(_.asInstanceOf[HttpResponse])
-        }, "0.0.0.0", port)
+        }, "0.0.0.0", 0)
         .foreach { serverBinding =>
           self ! serverBinding
         }
@@ -44,6 +44,7 @@ class ProxyActor(port: Int)(implicit materializer: Materializer)
   when(Binding) {
     case Event(serverBinding: ServerBinding, WithRequestQueue(requestQueue)) =>
       log.info(s"Server listening on ${serverBinding.localAddress}")
+      requestQueue.offer(ProxyBind(serverBinding.localAddress.getPort))
       goto(Bound) using BoundServer(serverBinding, 0, requestQueue, Map.empty)
     case Event(request: HttpRequest, _) =>
       sender() ! HttpResponse(StatusCodes.BadGateway)
@@ -111,19 +112,19 @@ object ProxyActor {
 
   case object Uninitialized extends Data
 
-  case class WithRequestQueue(requestQueue: SourceQueueWithComplete[ProxyRequest]) extends Data
+  case class WithRequestQueue(requestQueue: SourceQueueWithComplete[ProxyMessage]) extends Data
 
   case class BoundServer(serverBinding: ServerBinding,
                          requestCount: Long,
-                         requestQueue: SourceQueueWithComplete[ProxyRequest],
+                         requestQueue: SourceQueueWithComplete[ProxyMessage],
                          pendingRequests: Map[Long, ActorRef])
       extends Data
 
-  case class ConnectSource(requestQueue: SourceQueueWithComplete[ProxyRequest])
+  case class ConnectSource(requestQueue: SourceQueueWithComplete[ProxyMessage])
 
   case object Disconnect
 
-  def props(port: Int)(implicit materializer: Materializer) = Props(new ProxyActor(port))
+  def props(implicit materializer: Materializer) = Props(new ProxyActor)
 
   implicit val timeout: Timeout = Timeout(1.minute)
 }

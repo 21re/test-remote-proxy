@@ -6,19 +6,18 @@ import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import spray.json._
-import testproxy.api.{JsonSupport, ProxyRequest, ProxyResponse}
+import testproxy.api.{JsonSupport, ProxyMessage, ProxyRequest, ProxyResponse}
 
 import scala.concurrent.ExecutionContext
 
-class ProxyServer(
-    port: Int)(implicit system: ActorSystem, materializer: Materializer, ec: ExecutionContext)
+class ProxyServer(implicit system: ActorSystem, materializer: Materializer, ec: ExecutionContext)
     extends JsonSupport {
-  val proxyActor: ActorRef = system.actorOf(ProxyActor.props(port))
+  val proxyActor: ActorRef = system.actorOf(ProxyActor.props)
   val responseSink: Sink[Message, Any] = Sink
     .foreach[Message] {
       case message: TextMessage =>
         message.textStream.runWith(Sink.reduce[String](_ + _)).foreach { text =>
-          proxyActor ! text.parseJson.convertTo[ProxyResponse]
+          proxyActor ! text.parseJson.convertTo[ProxyMessage]
         }
       case message: BinaryMessage =>
         message.dataStream.runWith(Sink.ignore)
@@ -30,7 +29,7 @@ class ProxyServer(
     }
 
   val requestSource: Source[Message, Any] = Source
-    .queue[ProxyRequest](100, OverflowStrategy.backpressure)
+    .queue[ProxyMessage](100, OverflowStrategy.backpressure)
     .map { request =>
       TextMessage(request.toJson.compactPrint)
     }
