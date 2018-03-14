@@ -58,6 +58,12 @@ scalafmtVersion := "1.0.0"
 
 dockerRepository in Docker := Some("21re")
 
+licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
+
+resolvers += "21re-bintray" at "http://dl.bintray.com/21re/public"
+
+publishMavenStyle := true
+
 bintrayOrganization := Some("21re")
 
 bintrayRepository := "public"
