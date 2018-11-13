@@ -6,8 +6,8 @@ version := {
   "0.1-" + sys.props.get("BUILD_NUMBER").orElse(sys.env.get("BUILD_NUMBER")).getOrElse("SNAPSHOT")
 }
 
-scalaVersion := "2.12.3"
-scalaVersion in ThisBuild := "2.12.3"
+scalaVersion := "2.12.7"
+scalaVersion in ThisBuild := "2.12.7"
 
 enablePlugins(JavaAppPackaging, DockerPlugin)
 
@@ -71,3 +71,9 @@ bintrayRepository := "public"
 bintrayCredentialsFile := {
   sys.props.get("BINTRAY_CREDENTIALS").orElse(sys.env.get("BINTRAY_CREDENTIALS")).map(new File(_)).getOrElse(baseDirectory.value / ".bintray" / "credentials")
 }
+
+test in assembly := {}
+
+assemblyJarName in assembly := "remote-test-proxy.jar"
+
+mainClass in assembly := Some("testproxy.server.Main")

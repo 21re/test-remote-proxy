@@ -9,7 +9,7 @@ if(env.BRANCH_NAME == 'master') {
 node {
     checkout scm
 
-    sbtBuild([cmds: "clean compile test"])
+    sbtBuild([cmds: "clean compile test assembly"])
 
     if(publish) {
       sbtBuild([cmds: "publish"])
