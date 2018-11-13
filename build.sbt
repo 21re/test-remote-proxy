@@ -43,7 +43,8 @@ scalacOptions in GlobalScope ++= Seq(
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http"   % "10.1.0",
   "com.typesafe.akka" %% "akka-http-spray-json" % "10.1.0",
-  "com.typesafe.akka" %% "akka-stream" % "2.5.8"
+  "com.typesafe.akka" %% "akka-stream" % "2.5.8",
+  "com.typesafe.play" %% "play-test" % "2.6.16"
 )
 
 mainClass in Compile := Some("testproxy.server.Main")
