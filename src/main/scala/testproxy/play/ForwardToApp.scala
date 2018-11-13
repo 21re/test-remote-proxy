@@ -1,6 +1,5 @@
 package testproxy.play
 
-import akka.stream.Materializer
 import akka.util.ByteString
 import play.api.Application
 import play.api.mvc.{Headers, Result}
@@ -10,8 +9,7 @@ import testproxy.client.RemoteProxy
 
 import scala.concurrent.Future
 
-class ForwardToApp(proxyEndpoint: String, target: Application)(implicit mat: Materializer)
-    extends RemoteProxy(proxyEndpoint) {
+class ForwardToApp(proxyEndpoint: String, target: Application) extends RemoteProxy(proxyEndpoint) {
   def mangleRequest: PartialFunction[FakeRequest[ByteString], FakeRequest[ByteString]] = {
     case request => request
   }
