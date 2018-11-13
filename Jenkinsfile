@@ -9,7 +9,7 @@ if(env.BRANCH_NAME == 'master') {
 node {
     checkout scm
 
-    sbtBuild([cmds: "clean compile test assembly"])
+    sbtBuild([cmds: "clean compile test server/assembly"])
 
     sh """
       docker build -t registry.control.21re.works/local-selenium:chromium-${gen.VERSION} -f Dockerfile.chromium .

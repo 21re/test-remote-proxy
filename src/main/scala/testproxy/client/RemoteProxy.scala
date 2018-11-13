@@ -1,6 +1,6 @@
 package testproxy.client
 
-import akka.{Done, NotUsed}
+import akka.Done
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
@@ -8,14 +8,13 @@ import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, WebSock
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, KillSwitches, Materializer, UniqueKillSwitch}
 import akka.util.ByteString
+import play.api.libs.json.Json
 import testproxy.api._
-import spray.json._
-import scala.concurrent.duration._
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 
-abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
+abstract class RemoteProxy(proxyEndpoint: String) {
   implicit val system: ActorSystem        = ActorSystem("test-proxy-client")
   implicit def ec: ExecutionContext       = system.dispatcher
   implicit val materializer: Materializer = ActorMaterializer()
@@ -25,7 +24,7 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
   val (upgradeResponse, killSwitches) =
     Http().singleWebSocketRequest(WebSocketRequest(proxyEndpoint), clientFlow)
 
-  val connected = upgradeResponse.map { upgrade =>
+  val connected: Future[Done.type] = upgradeResponse.map { upgrade =>
     if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
       Done
     } else {
@@ -50,10 +49,10 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
         case message: TextMessage =>
           Source.fromFutureSource(
             message.textStream.runWith(Sink.reduce[String](_ + _)).flatMap { text =>
-              val message = text.parseJson.convertTo[ProxyMessage]
+              val message = Json.parse(text).as[ProxyMessage]
               handleMessage(message).map {
-                case Some(message) =>
-                  Source(TextMessage(message.toJson.compactPrint) :: Nil)
+                case Some(response) =>
+                  Source(TextMessage(Json.stringify(Json.toJson(response))) :: Nil)
                 case None => Source.empty
               }
             }
@@ -63,7 +62,7 @@ abstract class RemoteProxy(proxyEndpoint: String) extends JsonSupport {
           Source.empty
       }
       .viaMat(KillSwitches.single)(Keep.right)
-      .keepAlive(30.seconds, () => TextMessage(ProxyMessageFormat.write(ProxyPing).compactPrint))
+      .keepAlive(30.seconds, () => TextMessage(Json.stringify(Json.toJson(ProxyPing))))
   }
 
   def handleMessage(message: ProxyMessage): Future[Option[ProxyMessage]] = message match {

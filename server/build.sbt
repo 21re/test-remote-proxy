@@ -1,15 +1,10 @@
-lazy val server = (project in file("server"))
-
-lazy val root = (project in file(".")).aggregate(server)
-
-name := "remote-test-proxy"
+name := "remote-test-proxy-server"
 
 organization := "de.21re"
 
 version := {
   "0.1-" + sys.props.get("BUILD_NUMBER").orElse(sys.env.get("BUILD_NUMBER")).getOrElse("SNAPSHOT")
 }
-
 
 scalaVersion := "2.12.7"
 scalaVersion in ThisBuild := "2.12.7"
@@ -46,7 +41,9 @@ scalacOptions in GlobalScope ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-test" % "2.6.16"
+  "com.typesafe.akka" %% "akka-http"   % "10.1.0",
+  "com.typesafe.akka" %% "akka-stream" % "2.5.11",
+  "com.typesafe.play" %% "play-json" % "2.6.9"
 )
 
 mainClass in Compile := Some("testproxy.server.Main")
@@ -56,7 +53,7 @@ scalafmtVersion := "1.0.0"
 (compile in Compile) := {
   (compile in Compile) dependsOn (
     scalafmt in Compile
-  )
+    )
 }.value
 
 dockerRepository in Docker := Some("21re")
@@ -74,3 +71,9 @@ bintrayRepository := "public"
 bintrayCredentialsFile := {
   sys.props.get("BINTRAY_CREDENTIALS").orElse(sys.env.get("BINTRAY_CREDENTIALS")).map(new File(_)).getOrElse(baseDirectory.value / ".bintray" / "credentials")
 }
+
+test in assembly := {}
+
+assemblyJarName in assembly := "remote-test-proxy-server.jar"
+
+mainClass in assembly := Some("testproxy.server.Main")

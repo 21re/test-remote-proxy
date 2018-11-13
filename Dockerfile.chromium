@@ -1,5 +1,5 @@
 FROM selenium/standalone-chrome:3.141.5
 
-COPY target/scala-2.12/remote-test-proxy.jar /opt/remote-test-proxy.jar
+COPY server/target/scala-2.12/remote-test-proxy-server.jar /opt/remote-test-proxy-server.jar
 
-COPY conf/remote-test-proxy.conf /etc/supervisor/conf.d/remote-test-proxy.conf
+COPY server/conf/remote-test-proxy.conf /etc/supervisor/conf.d/remote-test-proxy.conf
