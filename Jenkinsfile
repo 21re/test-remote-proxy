@@ -13,6 +13,7 @@ node {
 
     sh """
       docker build -t registry.control.21re.works/local-selenium:chromium-${gen.VERSION} -f Dockerfile.chromium .
+      docker build -t registry.control.21re.works/local-selenium:firefox-${gen.VERSION} -f Dockerfile.firefox .
     """
 
     if(publish) {
@@ -22,6 +23,10 @@ node {
         docker tag registry.control.21re.works/local-selenium:chromium-${gen.VERSION} registry.control.21re.works/local-selenium:chromium-latest
         docker push registry.control.21re.works/local-selenium:chromium-${gen.VERSION}
         docker push registry.control.21re.works/local-selenium:chromium-latest
+
+        docker tag registry.control.21re.works/local-selenium:firefox-${gen.VERSION} registry.control.21re.works/local-selenium:firefox-latest
+        docker push registry.control.21re.works/local-selenium:firefox-${gen.VERSION}
+        docker push registry.control.21re.works/local-selenium:firefox-latest
       """
     }
 }
