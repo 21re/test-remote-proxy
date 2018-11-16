@@ -46,7 +46,8 @@ scalacOptions in GlobalScope ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-test" % "2.6.16"
+  "com.typesafe.play" %% "play-test" % "2.6.16",
+  "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2"
 )
 
 mainClass in Compile := Some("testproxy.server.Main")

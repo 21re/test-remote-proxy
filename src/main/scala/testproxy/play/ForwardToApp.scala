@@ -4,28 +4,30 @@ import akka.util.ByteString
 import play.api.Application
 import play.api.mvc.{Headers, Result}
 import play.api.test.{FakeRequest, Helpers}
+import play.mvc.Http.HeaderNames
 import testproxy.api.{Header, ProxyRequest, ProxyResponse}
 import testproxy.client.RemoteProxy
 
 import scala.concurrent.Future
 
-class ForwardToApp(proxyEndpoint: String, target: Application) extends RemoteProxy(proxyEndpoint) {
-  def mangleRequest: PartialFunction[FakeRequest[ByteString], FakeRequest[ByteString]] = {
-    case request => request
-  }
-
-  def mangleResult: PartialFunction[Result, Result] = {
-    case response => response
-  }
+class ForwardToApp(proxyEndpoint: String,
+                   target: Application,
+                   mangleRequest: FakeRequest[ByteString] => FakeRequest[ByteString],
+                   mangleResult: Result => Result)
+    extends RemoteProxy(proxyEndpoint) {
 
   override def handler: PartialFunction[ProxyRequest, Future[ProxyResponse]] = {
-    case proxyRequest => {
+    case proxyRequest =>
+      var headers = proxyRequest.headers.foldLeft(Headers.create()) { (headers, header) =>
+        headers.add(header.name -> header.value)
+      }
+      if (proxyRequest.contentType.length > 0) {
+        headers = headers.add(HeaderNames.CONTENT_TYPE -> proxyRequest.contentType)
+      }
       val request = FakeRequest(
         proxyRequest.method,
         proxyRequest.path,
-        proxyRequest.headers.foldLeft(Headers.create()) { (headers, header) =>
-          headers.add(header.name -> header.value)
-        },
+        headers,
         proxyRequest.body
       )
 
@@ -50,11 +52,12 @@ class ForwardToApp(proxyEndpoint: String, target: Application) extends RemotePro
                 case (name, value) =>
                   Header(name, value)
               }.toSeq,
-              contentType = effectiveResult.body.contentType.getOrElse(""),
+              contentType = effectiveResult.body.contentType
+                .orElse(result.header.headers.get(HeaderNames.CONTENT_TYPE))
+                .getOrElse(""),
               body = body
             )
           }
       }
-    }
   }
 }
