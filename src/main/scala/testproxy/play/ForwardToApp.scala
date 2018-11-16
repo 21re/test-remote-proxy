@@ -25,7 +25,6 @@ class ForwardToApp(proxyEndpoint: String, target: Application) extends RemotePro
         proxyRequest.path,
         proxyRequest.headers.foldLeft(Headers.create()) { (headers, header) =>
           headers.add(header.name -> header.value)
-          headers
         },
         proxyRequest.body
       )
